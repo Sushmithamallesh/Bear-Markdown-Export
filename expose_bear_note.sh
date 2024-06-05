@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Set the paths to your Bear notes backup directory and Hugo blog directory
+BEAR_NOTES_DIR=~/Documents/projects/bear-notes-backup/Bear
+HUGO_BLOG_DIR=~/Documents/projects/sushispot
+
+# Set the filename of the Markdown file you want to expose
+MARKDOWN_FILE="Notes.md"
+ASSETS_DIR="BearImages"
+HUGO_FILE_NAME=content/notes/runningnote.md
+# Copy the Markdown file from Bear notes backup to Hugo blog content directory
+cp "$BEAR_NOTES_DIR/$MARKDOWN_FILE" "$HUGO_BLOG_DIR/$HUGO_FILE_NAME"
+
+# Copy the BearImages directory recursively from Bear notes backup to Hugo blog directory
+cp -r "$BEAR_NOTES_DIR/BearImages" "$HUGO_BLOG_DIR/static/"
+
+# Change to the Hugo blog directory
+cd "$HUGO_BLOG_DIR"
+
+# Stage all changes
+git add .
+
+# Commit the changes with a timestamp
+git commit -m "Automated running note export"
+
+# Push the changes to the GitHub repository
+git push origin main

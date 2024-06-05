@@ -7,7 +7,7 @@ import shlex
 import objc
 from AppKit import NSWorkspace, NSWorkspaceOpenConfiguration, NSURL
 
-'''
+"""
 # Markdown export from Bear sqlite database 
 Version 1.4, 2020-01-11
 modified by: github/andymatuschak, andy_matuschak@twitter
@@ -39,28 +39,33 @@ Then exporting Markdown from Bear sqlite db.
 or leave list empty for all notes: `limit_export_to_tags = []`
 * Can export and link to images in common image repository
 * Or export as textbundles with images included 
-'''
+"""
 
-make_tag_folders = False  # Exports to folders using first tag only, if `multi_tag_folders = False`
+make_tag_folders = (
+    False  # Exports to folders using first tag only, if `multi_tag_folders = False`
+)
 multi_tag_folders = True  # Copies notes to all 'tag-paths' found in note!
-                          # Only active if `make_tag_folders = True`
+# Only active if `make_tag_folders = True`
 hide_tags_in_comment_block = False  # Hide tags in HTML comments: `<!-- #mytag -->`
 
 # The following two lists are more or less mutually exclusive, so use only one of them.
 # (You can use both if you have some nested tags where that makes sense)
 # Also, they only work if `make_tag_folders = True`.
 only_export_these_tags = []  # Leave this list empty for all notes! See below for sample
-# only_export_these_tags = ['bear/github', 'writings'] 
+# only_export_these_tags = ['bear/github', 'writings']
 
 export_as_textbundles = False  # Exports as Textbundles with images included
-export_as_hybrids = True  # Exports as .textbundle only if images included, otherwise as .md
-                          # Only used if `export_as_textbundles = True`
-export_image_repository = True  # Export all notes as md but link images to 
-                                 # a common repository exported to: `assets_path` 
-                                 # Only used if `export_as_textbundles = False`
+export_as_hybrids = (
+    True  # Exports as .textbundle only if images included, otherwise as .md
+)
+# Only used if `export_as_textbundles = True`
+export_image_repository = True  # Export all notes as md but link images to
+# a common repository exported to: `assets_path`
+# Only used if `export_as_textbundles = False`
 
 import os
-HOME = os.getenv('HOME', '')
+
+HOME = os.getenv("HOME", "")
 default_out_folder = os.path.join(HOME, "Work", "BearNotes")
 default_backup_folder = os.path.join(HOME, "Work", "BearSyncBackup")
 
@@ -79,25 +84,50 @@ import json
 import argparse
 
 parser = argparse.ArgumentParser(description="Sync Bear notes")
-parser.add_argument("--out", default=default_out_folder, help="Path where Bear notes will be synced")
-parser.add_argument("--backup", default=default_backup_folder, help="Path where conflicts will be backed up (must be outside of --out)")
+parser.add_argument(
+    "--out", default=default_out_folder, help="Path where Bear notes will be synced"
+)
+parser.add_argument(
+    "--backup",
+    default=default_backup_folder,
+    help="Path where conflicts will be backed up (must be outside of --out)",
+)
 parser.add_argument("--images", default=None, help="Path where images will be stored")
-parser.add_argument("--skipImport", action="store_const", const=True, default=False, help="When present, the script only exports from Bear to Markdown; it skips the import step.")
-parser.add_argument("--excludeTag", action="append", default=[], help="Don't export notes with this tag. Can be used multiple times.")
-parser.add_argument("--hideTags", action="store_const", const=True, default=False, help="Wrap tags in <!-- -->")
+parser.add_argument(
+    "--skipImport",
+    action="store_const",
+    const=True,
+    default=False,
+    help="When present, the script only exports from Bear to Markdown; it skips the import step.",
+)
+parser.add_argument(
+    "--excludeTag",
+    action="append",
+    default=[],
+    help="Don't export notes with this tag. Can be used multiple times.",
+)
+parser.add_argument(
+    "--hideTags",
+    action="store_const",
+    const=True,
+    default=False,
+    help="Wrap tags in <!-- -->",
+)
 
 parsed_args = vars(parser.parse_args())
 
 
 set_logging_on = True
 
-# NOTE! if 'BearNotes' is left blank, all other files in my_sync_service will be deleted!! 
+# NOTE! if 'BearNotes' is left blank, all other files in my_sync_service will be deleted!!
 export_path = parsed_args.get("out")
-no_export_tags = parsed_args.get("excludeTag")  # If a tag in note matches one in this list, it will not be exported.
-hide_tags_in_comment_block = parsed_args.get("hideTags");
+no_export_tags = parsed_args.get(
+    "excludeTag"
+)  # If a tag in note matches one in this list, it will not be exported.
+hide_tags_in_comment_block = parsed_args.get("hideTags")
 
 # NOTE! "export_path" is used for sync-back to Bear, so don't change this variable name!
-multi_export = [(export_path, True)]  # only one folder output here. 
+multi_export = [(export_path, True)]  # only one folder output here.
 # Use if you want export to severa places like: Dropbox and OneDrive, etc. See below
 # Sample for multi folder export:
 # export_path_aux1 = os.path.join(HOME, 'OneDrive', 'BearNotes')
@@ -107,26 +137,37 @@ multi_export = [(export_path, True)]  # only one folder output here.
 # Set this flag fo False only for folders to keep old deleted versions of notes
 # multi_export = [(export_path, True), (export_path_aux1, False), (export_path_aux2, True)]
 
-temp_path = os.path.join(HOME, 'Temp', 'BearExportTemp')  # NOTE! Do not change the "BearExportTemp" folder name!!!
-bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
-sync_backup = parsed_args.get("backup") # Backup of original note before sync to Bear.
-log_file = os.path.join(sync_backup, 'bear_export_sync_log.txt')
+temp_path = os.path.join(
+    HOME, "Temp", "BearExportTemp"
+)  # NOTE! Do not change the "BearExportTemp" folder name!!!
+bear_db = os.path.join(
+    HOME,
+    "Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite",
+)
+sync_backup = parsed_args.get("backup")  # Backup of original note before sync to Bear.
+log_file = os.path.join(sync_backup, "bear_export_sync_log.txt")
 
 # Paths used in image exports:
-bear_image_path = os.path.join(HOME,
-    'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/Local Files/Note Images')
-assets_path = parsed_args.get("images") if parsed_args.get("images") else os.path.join(export_path, 'BearImages')
+bear_image_path = os.path.join(
+    HOME,
+    "Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/Local Files/Note Images",
+)
+assets_path = (
+    parsed_args.get("images")
+    if parsed_args.get("images")
+    else os.path.join(export_path, "BearImages")
+)
 
-sync_ts = '.sync-time.log'
-export_ts = '.export-time.log'
+sync_ts = ".sync-time.log"
+export_ts = ".export-time.log"
 
 sync_ts_file = os.path.join(export_path, sync_ts)
 sync_ts_file_temp = os.path.join(temp_path, sync_ts)
 export_ts_file_exp = os.path.join(export_path, export_ts)
 export_ts_file = os.path.join(temp_path, export_ts)
 
-gettag_sh = os.path.join(HOME, 'temp/gettag.sh')
-gettag_txt = os.path.join(HOME, 'temp/gettag.txt')
+gettag_sh = os.path.join(HOME, "temp/gettag.sh")
+gettag_txt = os.path.join(HOME, "temp/gettag.txt")
 
 
 def main():
@@ -141,10 +182,10 @@ def main():
         if export_image_repository and not export_as_textbundles:
             copy_bear_images()
         # notify('Export completed')
-        write_log(str(note_count) + ' notes exported to: ' + export_path)
-        exit(1)
+        write_log(str(note_count) + " notes exported to: " + export_path)
+        exit(0)
     else:
-        print('*** No notes needed exports')
+        print("*** No notes needed exports")
         exit(0)
 
 
@@ -153,9 +194,9 @@ def write_log(message):
         if not os.path.exists(sync_backup):
             os.makedirs(sync_backup)
         time_stamp = datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
-        message = message.replace(export_path + '/', '')
-        with open(log_file, 'a', encoding='utf-8') as f:
-            f.write(time_stamp + ': ' + message + '\n')
+        message = message.replace(export_path + "/", "")
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(time_stamp + ": " + message + "\n")
 
 
 def check_db_modified():
@@ -169,16 +210,18 @@ def check_db_modified():
 def export_markdown():
     with sqlite3.connect(bear_db) as conn:
         conn.row_factory = sqlite3.Row
-        query = "SELECT * FROM `ZSFNOTE` WHERE `ZTRASHED` LIKE '0' AND `ZARCHIVED` LIKE '0'"
+        query = (
+            "SELECT * FROM `ZSFNOTE` WHERE `ZTRASHED` LIKE '0' AND `ZARCHIVED` LIKE '0'"
+        )
         c = conn.execute(query)
         note_count = 0
         for row in c:
-            title = row['ZTITLE']
-            md_text = row['ZTEXT'].rstrip()
-            creation_date = row['ZCREATIONDATE']
-            modified = row['ZMODIFICATIONDATE']
-            uuid = row['ZUNIQUEIDENTIFIER']
-            pk = row['Z_PK']
+            title = row["ZTITLE"]
+            md_text = row["ZTEXT"].rstrip()
+            creation_date = row["ZCREATIONDATE"]
+            modified = row["ZMODIFICATIONDATE"]
+            uuid = row["ZUNIQUEIDENTIFIER"]
+            pk = row["Z_PK"]
             filename = clean_title(title)
             file_list = []
             if make_tag_folders:
@@ -194,26 +237,28 @@ def export_markdown():
             if file_list:
                 mod_dt = dt_conv(modified)
                 md_text = hide_tags(md_text)
-                md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
+                md_text += "\n\n<!-- {BearID:" + uuid + "} -->\n"
                 for filepath in file_list:
                     note_count += 1
                     # print(filepath)
                     if export_as_textbundles:
                         if check_image_hybrid(md_text):
-                            make_text_bundle(md_text, filepath, mod_dt)                        
+                            make_text_bundle(md_text, filepath, mod_dt)
                         else:
-                            write_file(filepath + '.md', md_text, mod_dt, creation_date)
+                            write_file(filepath + ".md", md_text, mod_dt, creation_date)
                     elif export_image_repository:
                         md_proc_text = process_image_links(md_text, filepath, conn, pk)
-                        write_file(filepath + '.md', md_proc_text, mod_dt, creation_date)
+                        write_file(
+                            filepath + ".md", md_proc_text, mod_dt, creation_date
+                        )
                     else:
-                        write_file(filepath + '.md', md_text, mod_dt, creation_date)
+                        write_file(filepath + ".md", md_text, mod_dt, creation_date)
     return note_count
 
 
 def check_image_hybrid(md_text):
     if export_as_hybrids:
-        if re.search(r'\[image:(.+?)\]', md_text):
+        if re.search(r"\[image:(.+?)\]", md_text):
             return True
         else:
             return False
@@ -222,39 +267,39 @@ def check_image_hybrid(md_text):
 
 
 def make_text_bundle(md_text, filepath, mod_dt):
-    '''
-    Exports as Textbundles with images included 
-    '''
-    bundle_path = filepath + '.textbundle'
-    assets_path = os.path.join(bundle_path, 'assets')    
+    """
+    Exports as Textbundles with images included
+    """
+    bundle_path = filepath + ".textbundle"
+    assets_path = os.path.join(bundle_path, "assets")
     if not os.path.exists(bundle_path):
         os.makedirs(bundle_path)
         os.makedirs(assets_path)
-        
-    info = '''{
+
+    info = """{
     "transient" : true,
     "type" : "net.daringfireball.markdown",
     "creatorIdentifier" : "net.shinyfrog.bear",
     "version" : 2
-    }'''
-    matches = re.findall(r'\[image:(.+?)\]', md_text)
+    }"""
+    matches = re.findall(r"\[image:(.+?)\]", md_text)
     for match in matches:
         image_name = match
-        new_name = image_name.replace('/', '_')
+        new_name = image_name.replace("/", "_")
         source = os.path.join(bear_image_path, image_name)
         target = os.path.join(assets_path, new_name)
         shutil.copy2(source, target)
 
-    md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
-    write_file(bundle_path + '/text.md', md_text, mod_dt, 0)
-    write_file(bundle_path + '/info.json', info, mod_dt, 0)
+    md_text = re.sub(r"\[image:(.+?)/(.+?)\]", r"![](assets/\1_\2)", md_text)
+    write_file(bundle_path + "/text.md", md_text, mod_dt, 0)
+    write_file(bundle_path + "/info.json", info, mod_dt, 0)
     os.utime(bundle_path, (-1, mod_dt))
 
 
 def sub_path_from_tag(temp_path, filename, md_text):
     # Get tags in note:
-    pattern1 = r'(?<!\S)\#([.\w\/\-]+)[ \n]?(?!([\/ \w]+\w[#]))'
-    pattern2 = r'(?<![\S])\#([^ \d][.\w\/ ]+?)\#([ \n]|$)'
+    pattern1 = r"(?<!\S)\#([.\w\/\-]+)[ \n]?(?!([\/ \w]+\w[#]))"
+    pattern2 = r"(?<![\S])\#([^ \d][.\w\/ ]+?)\#([ \n]|$)"
     if multi_tag_folders:
         # Files copied to all tag-folders found in note
         tags = []
@@ -269,8 +314,8 @@ def sub_path_from_tag(temp_path, filename, md_text):
             return [os.path.join(temp_path, filename)]
     else:
         # Only folder for first tag
-        match1 =  re.search(pattern1, md_text)
-        match2 =  re.search(pattern2, md_text)
+        match1 = re.search(pattern1, md_text)
+        match2 = re.search(pattern2, md_text)
         if match1 and match2:
             if match1.start(1) < match2.start(1):
                 tag = match1.group(1)
@@ -286,7 +331,7 @@ def sub_path_from_tag(temp_path, filename, md_text):
         tags = [tag]
     paths = [os.path.join(temp_path, filename)]
     for tag in tags:
-        if tag == '/':
+        if tag == "/":
             continue
         if only_export_these_tags:
             export = False
@@ -299,21 +344,22 @@ def sub_path_from_tag(temp_path, filename, md_text):
         for no_tag in no_export_tags:
             if tag.lower().startswith(no_tag.lower()):
                 return []
-        if tag.startswith('.'):
+        if tag.startswith("."):
             # Avoid hidden path if it starts with a '.'
-            sub_path = '_' + tag[1:]     
+            sub_path = "_" + tag[1:]
         else:
-            sub_path = tag    
+            sub_path = tag
         tag_path = os.path.join(temp_path, sub_path)
         if not os.path.exists(tag_path):
             os.makedirs(tag_path)
-        paths.append(os.path.join(tag_path, filename))      
+        paths.append(os.path.join(tag_path, filename))
     return paths
 
 
 def process_image_links(md_text, filepath, conn, pk):
     image_map = None
     remaining_images = set()
+
     def replace_image_link(match):
         # We're only processing local assets.
         if match.group(2).startswith("http"):
@@ -326,7 +372,9 @@ def process_image_links(md_text, filepath, conn, pk):
             for row in files:
                 filename = row["ZFILENAME"]
                 uuid = row["ZUNIQUEIDENTIFIER"]
-                out_file_path = os.path.relpath(assets_path, export_path) + f"/{uuid}/{filename}"
+                out_file_path = (
+                    os.path.relpath(assets_path, export_path) + f"/{uuid}/{filename}"
+                )
                 image_map[filename] = out_file_path
                 remaining_images.add(filename)
 
@@ -334,53 +382,75 @@ def process_image_links(md_text, filepath, conn, pk):
         image_filename = urllib.parse.unquote(match.group(2))
         out_file_path = image_map.get(image_filename)
         if out_file_path is None:
-            print(f"WARNING: Note {filepath} has image {image_filename} which was not found in database. Skipping.")
+            print(
+                f"WARNING: Note {filepath} has image {image_filename} which was not found in database. Skipping."
+            )
             return match.group(0)
         remaining_images.remove(image_filename)
         encoded_out_file_path = urllib.parse.quote(out_file_path)
         return f"![{match.group(1)}]({encoded_out_file_path})"
 
     if remaining_images:
-        print(f"WARNING: Note {filepath} has images in the database which weren't matched in the note: {remaining_images}")
-    out_text = re.sub(r'!\[(.*?)\]\((.+?)\)', replace_image_link, md_text)
+        print(
+            f"WARNING: Note {filepath} has images in the database which weren't matched in the note: {remaining_images}"
+        )
+    out_text = re.sub(r"!\[(.*?)\]\((.+?)\)", replace_image_link, md_text)
     return out_text
 
 
 def restore_image_links(md_text):
     # TODO: add new external images to Bear when necessary
     if export_as_textbundles:
-        return re.sub(r'!\[(.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[image:\2/\3]\4 \1', md_text)
+        return re.sub(
+            r'!\[(.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?',
+            r"[image:\2/\3]\4 \1",
+            md_text,
+        )
     elif export_image_repository:
         relative_asset_path = os.path.relpath(assets_path, export_path)
-        return re.sub(r'!\[(.*?)\]\(' + re.escape(relative_asset_path) + r'/(.+?)/(.+?)\)', r'![\1](\3)', md_text)
-        
+        return re.sub(
+            r"!\[(.*?)\]\(" + re.escape(relative_asset_path) + r"/(.+?)/(.+?)\)",
+            r"![\1](\3)",
+            md_text,
+        )
 
 
 def copy_bear_images():
     # Image files copied to a common image repository
-    subprocess.call(['rsync', '-r', '-t', '--delete', 
-                    bear_image_path + "/", assets_path])
+    subprocess.call(
+        ["rsync", "-r", "-t", "--delete", bear_image_path + "/", assets_path]
+    )
 
 
 def write_time_stamp():
     # write to time-stamp.txt file (used during sync)
-    write_file(export_ts_file, "Markdown from Bear written at: " +
-               datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), 0, 0)
-    write_file(sync_ts_file_temp, "Markdown from Bear written at: " +
-               datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), 0, 0)
+    write_file(
+        export_ts_file,
+        "Markdown from Bear written at: "
+        + datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"),
+        0,
+        0,
+    )
+    write_file(
+        sync_ts_file_temp,
+        "Markdown from Bear written at: "
+        + datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"),
+        0,
+        0,
+    )
 
 
 def hide_tags(md_text):
     # Hide tags from being seen as H1, by placing `period+space` at start of line:
     if hide_tags_in_comment_block:
-        md_text =  re.sub(r'(\n)[ \t]*(\#[^\s#].*)', r'\1<!-- \2 -->', md_text)
+        md_text = re.sub(r"(\n)[ \t]*(\#[^\s#].*)", r"\1<!-- \2 -->", md_text)
     return md_text
 
 
 def restore_tags(md_text):
     # Tags back to normal Bear tags, stripping the `period+space` at start of line:
     if hide_tags_in_comment_block:
-        md_text =  re.sub(r'(\n)<!--[ \t]*(\#[^\s#].*?) -->', r'\1\2', md_text)
+        md_text = re.sub(r"(\n)<!--[ \t]*(\#[^\s#].*?) -->", r"\1\2", md_text)
     return md_text
 
 
@@ -388,13 +458,13 @@ def clean_title(title):
     title = title[:225].strip()
     if title == "":
         title = "Untitled"
-    title = re.sub(r'[\/\\:]', r'-', title)
-    title = re.sub(r'-$', r'', title)    
+    title = re.sub(r"[\/\\:]", r"-", title)
+    title = re.sub(r"-$", r"", title)
     return title.strip()
 
 
 def write_file(filename, file_content, modified, created):
-    with open(filename, "w", encoding='utf-8') as f:
+    with open(filename, "w", encoding="utf-8") as f:
         f.write(file_content)
     if modified > 0:
         os.utime(filename, (-1, modified))
@@ -407,7 +477,7 @@ def write_file(filename, file_content, modified, created):
 
 
 def read_file(file_name):
-    with open(file_name, "r", encoding='utf-8') as f:
+    with open(file_name, "r", encoding="utf-8") as f:
         file_content = f.read()
     return file_content
 
@@ -422,27 +492,27 @@ def get_file_date(filename):
 
 def dt_conv(dtnum):
     # Formula for date offset based on trial and error:
-    hour = 3600 # seconds
+    hour = 3600  # seconds
     year = 365.25 * 24 * hour
     offset = year * 31 + hour * 6
     return dtnum + offset
 
 
 def date_time_conv(dtnum):
-    newnum = dt_conv(dtnum) 
+    newnum = dt_conv(dtnum)
     dtdate = datetime.datetime.fromtimestamp(newnum)
-    #print(newnum, dtdate)
-    return dtdate.strftime(' - %Y-%m-%d_%H%M')
+    # print(newnum, dtdate)
+    return dtdate.strftime(" - %Y-%m-%d_%H%M")
 
 
 def time_stamp_ts(ts):
     dtdate = datetime.datetime.fromtimestamp(ts)
-    return dtdate.strftime('%Y-%m-%d at %H:%M') 
+    return dtdate.strftime("%Y-%m-%d at %H:%M")
 
 
 def date_conv(dtnum):
     dtdate = datetime.datetime.fromtimestamp(dtnum)
-    return dtdate.strftime('%Y-%m-%d')
+    return dtdate.strftime("%Y-%m-%d")
 
 
 def delete_old_temp_files():
@@ -459,26 +529,39 @@ def delete_old_temp_files():
 
 def rsync_files_from_temp():
     # Moves markdown files to new folder using rsync:
-    # This is a very important step! 
+    # This is a very important step!
     # By first exporting all Bear notes to an emptied temp folder,
     # rsync will only update destination if modified or size have changed.
     # So only changed notes will be synced by Dropbox or OneDrive destinations.
     # Rsync will also delete notes on destination if deleted in Bear.
     # So doing it this way saves a lot of otherwise very complex programing.
     # Thank you very much, Rsync! ;)
-    for (dest_path, delete) in multi_export:
+    for dest_path, delete in multi_export:
         if not os.path.exists(dest_path):
             os.makedirs(dest_path)
         if delete:
-            subprocess.call(['rsync', '-r', '-t', '--crtimes', '-E', '--delete',
-                             '--exclude', 'BearImages/',
-                             '--exclude', '.obsidian/',
-                             '--exclude', '.Ulysses*',
-                             '--exclude', '*.Ulysses_Public_Filter',
-                             temp_path + "/", dest_path])
+            subprocess.call(
+                [
+                    "rsync",
+                    "-r",
+                    "-t",
+                    "--crtimes",
+                    "-E",
+                    "--delete",
+                    "--exclude",
+                    "BearImages/",
+                    "--exclude",
+                    ".obsidian/",
+                    "--exclude",
+                    ".Ulysses*",
+                    "--exclude",
+                    "*.Ulysses_Public_Filter",
+                    temp_path + "/",
+                    dest_path,
+                ]
+            )
         else:
-            subprocess.call(['rsync', '-r', '-t', '-E',
-                            temp_path + "/", dest_path])
+            subprocess.call(["rsync", "-r", "-t", "-E", temp_path + "/", dest_path])
 
 
 def sync_md_updates():
@@ -489,13 +572,13 @@ def sync_md_updates():
     ts_last_export = os.path.getmtime(export_ts_file)
     # Update synced timestamp file:
     update_sync_time_file(0)
-    file_types = ('*.md', '*.txt', '*.markdown')
-    for (root, dirnames, filenames) in os.walk(export_path):
-        if '.obsidian' in dirnames:
-            dirnames.remove('.obsidian')
-        '''
+    file_types = ("*.md", "*.txt", "*.markdown")
+    for root, dirnames, filenames in os.walk(export_path):
+        if ".obsidian" in dirnames:
+            dirnames.remove(".obsidian")
+        """
         This step walks down into all sub folders, if any.
-        '''
+        """
         for pattern in file_types:
             for filename in fnmatch.filter(filenames, pattern):
                 md_file = os.path.join(root, filename)
@@ -510,51 +593,59 @@ def sync_md_updates():
                     backup_ext_note(md_file)
                     if check_if_image_added(md_text, md_file):
                         textbundle_to_bear(md_text, md_file, ts)
-                        write_log('Imported to Bear: ' + md_file)
+                        write_log("Imported to Bear: " + md_file)
                     else:
                         update_bear_note(md_text, md_file, ts, ts_last_export)
-                        write_log('Bear Note Updated: ' + md_file)
+                        write_log("Bear Note Updated: " + md_file)
     if updates_found:
         # Give Bear time to process updates:
         time.sleep(3)
-        # Check again, just in case new updates synced from remote (OneDrive/Dropbox) 
+        # Check again, just in case new updates synced from remote (OneDrive/Dropbox)
         # during this process!
         # The logic is not 100% fool proof, but should be close to 99.99%
-        sync_md_updates() # Recursive call
+        sync_md_updates()  # Recursive call
     return updates_found
 
 
 def check_if_image_added(md_text, md_file):
-    if not '.textbundle/' in md_file:
+    if not ".textbundle/" in md_file:
         return False
-    matches = re.findall(r'!\[.*?\]\(assets/(.+?_).+?\)', md_text)
+    matches = re.findall(r"!\[.*?\]\(assets/(.+?_).+?\)", md_text)
     for image_match in matches:
-        'F89CDA3D-3FCC-4E92-88C1-CC4AF46FA733-10097-00002BBE9F7FF804_IMG_2280.JPG'
-        if not re.match(r'[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}-[0-9A-F]{3,5}-[0-9A-F]{16}_', image_match):
+        "F89CDA3D-3FCC-4E92-88C1-CC4AF46FA733-10097-00002BBE9F7FF804_IMG_2280.JPG"
+        if not re.match(
+            r"[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}-[0-9A-F]{3,5}-[0-9A-F]{16}_",
+            image_match,
+        ):
             return True
-    return False        
+    return False
 
 
 def textbundle_to_bear(md_text, md_file, mod_dt):
     md_text = restore_tags(md_text)
     bundle = os.path.split(md_file)[0]
-    match = re.search(r'\{BearID:(.+?)\}', md_text)
+    match = re.search(r"\{BearID:(.+?)\}", md_text)
     if match:
         uuid = match.group(1)
         # Remove old BearID: from new note
-        md_text = re.sub(r'\<\!-- ?\{BearID\:' + uuid + r'\} ?--\>', '', md_text).rstrip() + '\n'
-        md_text = insert_link_top_note(md_text, 'Images added! Link to original note: ', uuid)
+        md_text = (
+            re.sub(r"\<\!-- ?\{BearID\:" + uuid + r"\} ?--\>", "", md_text).rstrip()
+            + "\n"
+        )
+        md_text = insert_link_top_note(
+            md_text, "Images added! Link to original note: ", uuid
+        )
     else:
-        # New textbundle (with images), add path as tag: 
+        # New textbundle (with images), add path as tag:
         md_text = get_tag_from_path(md_text, bundle, export_path)
     write_file(md_file, md_text, mod_dt, 0)
     os.utime(bundle, (-1, mod_dt))
-    subprocess.call(['open', '-a', '/applications/bear.app', bundle])
+    subprocess.call(["open", "-a", "/applications/bear.app", bundle])
     time.sleep(0.5)
 
 
 def backup_ext_note(md_file):
-    if '.textbundle' in md_file:
+    if ".textbundle" in md_file:
         bundle_path = os.path.split(md_file)[0]
         bundle_name = os.path.split(bundle_path)[1]
         target = os.path.join(sync_backup, bundle_name)
@@ -567,85 +658,96 @@ def backup_ext_note(md_file):
         shutil.copytree(bundle_path, target)
     else:
         # Overwrite former bacups of incoming changes, only keeps last one:
-        shutil.copy2(md_file, sync_backup + '/')
+        shutil.copy2(md_file, sync_backup + "/")
 
 
 def update_sync_time_file(ts):
-    write_file(sync_ts_file,
-        "Checked for Markdown updates to sync at: " +
-        datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), ts, 0)
+    write_file(
+        sync_ts_file,
+        "Checked for Markdown updates to sync at: "
+        + datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"),
+        ts,
+        0,
+    )
 
 
 def update_bear_note(md_text, md_file, ts, ts_last_export):
     md_text = restore_tags(md_text)
     md_text = restore_image_links(md_text)
-    uuid = ''
-    match = re.search(r'\{BearID:(.+?)\}', md_text)
+    uuid = ""
+    match = re.search(r"\{BearID:(.+?)\}", md_text)
     sync_conflict = False
     if match:
         uuid = match.group(1)
         # Remove old BearID: from new note
-        md_text = re.sub(r'\<\!-- ?\{BearID\:' + uuid + r'\} ?--\>', '', md_text).rstrip() + '\n'
+        md_text = (
+            re.sub(r"\<\!-- ?\{BearID\:" + uuid + r"\} ?--\>", "", md_text).rstrip()
+            + "\n"
+        )
 
         sync_conflict = check_sync_conflict(uuid, ts_last_export)
         if sync_conflict:
-            link_original = 'bear://x-callback-url/open-note?id=' + uuid
-            message = '::Sync conflict! External update: ' + time_stamp_ts(ts) + '::'
-            message += '\n[Click here to see original Bear note](' + link_original + ')'
-            x_create = 'bear://x-callback-url/create?show_window=no&open_note=no' 
-            bear_x_callback(x_create, md_text, message, '')   
+            link_original = "bear://x-callback-url/open-note?id=" + uuid
+            message = "::Sync conflict! External update: " + time_stamp_ts(ts) + "::"
+            message += "\n[Click here to see original Bear note](" + link_original + ")"
+            x_create = "bear://x-callback-url/create?show_window=no&open_note=no"
+            bear_x_callback(x_create, md_text, message, "")
         else:
             # Regular external update
             orig_title = backup_bear_note(uuid)
-            # message = '::External update: ' + time_stamp_ts(ts) + '::'   
-            x_replace = 'bear://x-callback-url/add-text?show_window=no&open_note=no&mode=replace&id=' + uuid
-            bear_x_callback(x_replace, md_text, '', orig_title)
+            # message = '::External update: ' + time_stamp_ts(ts) + '::'
+            x_replace = (
+                "bear://x-callback-url/add-text?show_window=no&open_note=no&mode=replace&id="
+                + uuid
+            )
+            bear_x_callback(x_replace, md_text, "", orig_title)
             # # Trash old original note:
             # x_trash = 'bear://x-callback-url/trash?show_window=no&id=' + uuid
             # subprocess.call(["open", x_trash])
             # time.sleep(.2)
     else:
-        # New external md Note, since no Bear uuid found in text: 
-        # message = '::New external Note - ' + time_stamp_ts(ts) + '::' 
+        # New external md Note, since no Bear uuid found in text:
+        # message = '::New external Note - ' + time_stamp_ts(ts) + '::'
         md_text = get_tag_from_path(md_text, md_file, export_path)
-        x_create = 'bear://x-callback-url/create?show_window=no' 
-        bear_x_callback(x_create, md_text, '', '')
+        x_create = "bear://x-callback-url/create?show_window=no"
+        bear_x_callback(x_create, md_text, "", "")
     return
 
 
-def get_tag_from_path(md_text, md_file, root_path, inbox_for_root=False, extra_tag=''):
+def get_tag_from_path(md_text, md_file, root_path, inbox_for_root=False, extra_tag=""):
     # extra_tag should be passed as '#tag' or '#space tag#'
-    path = md_file.replace(root_path, '')[1:]
+    path = md_file.replace(root_path, "")[1:]
     sub_path = os.path.split(path)[0]
     tags = []
-    if '.textbundle' in sub_path:
+    if ".textbundle" in sub_path:
         sub_path = os.path.split(sub_path)[0]
-    if sub_path == '': 
+    if sub_path == "":
         if inbox_for_root:
-            tag = '#.inbox'
+            tag = "#.inbox"
         else:
-            tag = ''
-    elif sub_path.startswith('_'):
-        tag = '#.' + sub_path[1:].strip()
+            tag = ""
+    elif sub_path.startswith("_"):
+        tag = "#." + sub_path[1:].strip()
     else:
-        tag = '#' + sub_path.strip()
-    if ' ' in tag: 
-        tag += "#"               
-    if tag != '': 
+        tag = "#" + sub_path.strip()
+    if " " in tag:
+        tag += "#"
+    if tag != "":
         tags.append(tag)
-    if extra_tag != '':
+    if extra_tag != "":
         tags.append(extra_tag)
     for tag in get_file_tags(md_file):
-        tag = '#' + tag.strip()
-        if ' ' in tag: tag += "#"                   
+        tag = "#" + tag.strip()
+        if " " in tag:
+            tag += "#"
         tags.append(tag)
-    return md_text.strip() + '\n\n' + ' '.join(tags) + '\n'
+    return md_text.strip() + "\n\n" + " ".join(tags) + "\n"
 
 
 def get_file_tags(md_file):
     try:
         subprocess.call([gettag_sh, md_file, gettag_txt])
-        text = re.sub(r'\\n\d{1,2}', r'', read_file(gettag_txt))
+        text = re.sub(r"\\n\d{1,2}", r"", read_file(gettag_txt))
         tag_list = json.loads(text)
         return tag_list
     except:
@@ -655,22 +757,25 @@ def get_file_tags(md_file):
 open_config = NSWorkspaceOpenConfiguration.alloc().init()
 open_config.setActivates_(False)
 
+
 def bear_x_callback(x_command, md_text, message, orig_title):
-    if message != '':
+    if message != "":
         lines = md_text.splitlines()
         lines.insert(1, message)
-        md_text = '\n'.join(lines)
-    if orig_title != '':
+        md_text = "\n".join(lines)
+    if orig_title != "":
         lines = md_text.splitlines()
-        title = re.sub(r'^#+ ', r'', lines[0])
+        title = re.sub(r"^#+ ", r"", lines[0])
         if title != orig_title:
-            md_text = '\n'.join(lines)
+            md_text = "\n".join(lines)
         else:
-            md_text = '\n'.join(lines[1:])        
-    x_command_text = x_command + '&text=' + urllib.parse.quote(md_text)
+            md_text = "\n".join(lines[1:])
+    x_command_text = x_command + "&text=" + urllib.parse.quote(md_text)
     url = NSURL.URLWithString_(x_command_text)
-    NSWorkspace.sharedWorkspace().openURL_configuration_completionHandler_(url, open_config, None)
-    time.sleep(.2)
+    NSWorkspace.sharedWorkspace().openURL_configuration_completionHandler_(
+        url, open_config, None
+    )
+    time.sleep(0.2)
 
 
 def check_sync_conflict(uuid, ts_last_export):
@@ -678,11 +783,15 @@ def check_sync_conflict(uuid, ts_last_export):
     # Check modified date of original note in Bear sqlite db!
     with sqlite3.connect(bear_db) as conn:
         conn.row_factory = sqlite3.Row
-        query = "SELECT * FROM `ZSFNOTE` WHERE `ZTRASHED` LIKE '0' AND `ZUNIQUEIDENTIFIER` LIKE '" + uuid + "'"
+        query = (
+            "SELECT * FROM `ZSFNOTE` WHERE `ZTRASHED` LIKE '0' AND `ZUNIQUEIDENTIFIER` LIKE '"
+            + uuid
+            + "'"
+        )
         c = conn.execute(query)
     for row in c:
-        modified = row['ZMODIFICATIONDATE']
-        uuid = row['ZUNIQUEIDENTIFIER']
+        modified = row["ZMODIFICATIONDATE"]
+        uuid = row["ZUNIQUEIDENTIFIER"]
         mod_dt = dt_conv(modified)
         conflict = mod_dt > ts_last_export
     return conflict
@@ -694,20 +803,20 @@ def backup_bear_note(uuid):
         conn.row_factory = sqlite3.Row
         query = "SELECT * FROM `ZSFNOTE` WHERE `ZUNIQUEIDENTIFIER` LIKE '" + uuid + "'"
         c = conn.execute(query)
-    title = ''
+    title = ""
     for row in c:  # Will only get one row if uuid is found!
-        title = row['ZTITLE']
-        md_text = row['ZTEXT'].rstrip()
-        modified = row['ZMODIFICATIONDATE']
+        title = row["ZTITLE"]
+        md_text = row["ZTEXT"].rstrip()
+        modified = row["ZMODIFICATIONDATE"]
         mod_dt = dt_conv(modified)
-        created = row['ZCREATIONDATE']
+        created = row["ZCREATIONDATE"]
         cre_dt = dt_conv(created)
-        md_text = insert_link_top_note(md_text, 'Link to updated note: ', uuid)
+        md_text = insert_link_top_note(md_text, "Link to updated note: ", uuid)
         dtdate = datetime.datetime.fromtimestamp(cre_dt)
-        filename = clean_title(title) + dtdate.strftime(' - %Y-%m-%d_%H%M')
+        filename = clean_title(title) + dtdate.strftime(" - %Y-%m-%d_%H%M")
         if not os.path.exists(sync_backup):
             os.makedirs(sync_backup)
-        file_part = os.path.join(sync_backup, filename) 
+        file_part = os.path.join(sync_backup, filename)
         # This is a Bear text file, not exactly markdown.
         backup_file = file_part + ".txt"
         count = 2
@@ -717,34 +826,41 @@ def backup_bear_note(uuid):
             count += 1
         write_file(backup_file, md_text, mod_dt, created)
         filename2 = os.path.split(backup_file)[1]
-        write_log('Original to sync_backup: ' + filename2)
+        write_log("Original to sync_backup: " + filename2)
     return title
 
 
 def insert_link_top_note(md_text, message, uuid):
-    lines = md_text.split('\n')
-    title = re.sub(r'^#{1,6} ', r'', lines[0])
-    link = '::' + message + '[' + title + '](bear://x-callback-url/open-note?id=' + uuid + ')::'        
-    lines.insert(1, link) 
-    return '\n'.join(lines)
+    lines = md_text.split("\n")
+    title = re.sub(r"^#{1,6} ", r"", lines[0])
+    link = (
+        "::"
+        + message
+        + "["
+        + title
+        + "](bear://x-callback-url/open-note?id="
+        + uuid
+        + ")::"
+    )
+    lines.insert(1, link)
+    return "\n".join(lines)
 
 
 def init_gettag_script():
-    gettag_script = \
-    '''#!/bin/bash
+    gettag_script = """#!/bin/bash
     if [[ ! -e $1 ]] ; then
     echo 'file missing or not specified'
     exit 0
     fi
     JSON="$(xattr -p com.apple.metadata:_kMDItemUserTags "$1" | xxd -r -p | plutil -convert json - -o -)"
     echo $JSON > "$2"
-    '''
-    temp = os.path.join(HOME, 'temp')
+    """
+    temp = os.path.join(HOME, "temp")
     if not os.path.exists(temp):
         os.makedirs(temp)
     write_file(gettag_sh, gettag_script, 0, 0)
-    subprocess.call(['chmod', '777', gettag_sh])
-    
+    subprocess.call(["chmod", "777", gettag_sh])
+
 
 def notify(message):
     title = "ul_sync_md.py"
@@ -752,12 +868,21 @@ def notify(message):
         # Uses "terminal-notifier", download at:
         # https://github.com/julienXX/terminal-notifier/releases/download/2.0.0/terminal-notifier-2.0.0.zip
         # Only works with MacOS 10.11+
-        subprocess.call(['/Applications/terminal-notifier.app/Contents/MacOS/terminal-notifier',
-                         '-message', message, "-title", title, '-sound', 'default'])
+        subprocess.call(
+            [
+                "/Applications/terminal-notifier.app/Contents/MacOS/terminal-notifier",
+                "-message",
+                message,
+                "-title",
+                title,
+                "-sound",
+                "default",
+            ]
+        )
     except:
-        write_log('"terminal-notifier.app" is missing!')        
+        write_log('"terminal-notifier.app" is missing!')
     return
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
