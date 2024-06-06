@@ -1,0 +1,1 @@
+/Users/sushmithamallesh/Documents/projects/Bear-Markdown-Export/backup_and_sync.sh && /Users/sushmithamallesh/Documents/projects/Bear-Markdown-Export/expose_bear_note.sh
