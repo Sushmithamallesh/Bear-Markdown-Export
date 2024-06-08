@@ -5,11 +5,16 @@ BEAR_NOTES_DIR=~/Documents/projects/bear-notes-backup/Bear
 HUGO_BLOG_DIR=~/Documents/projects/sushispot
 
 # Set the filename of the Markdown file you want to expose
-MARKDOWN_FILE="Notes.md"
+MARKDOWN_FILE_ML="Notes on ML.md"
+MARKDOWN_FILE_DISTRIBUTED_SYSTEM="Notes on Distributed Systems.md"
+
 ASSETS_DIR="BearImages"
-HUGO_FILE_NAME=content/notes/runningnote.md
+HUGO_FILE_NAME_LLM=content/notes/runningnoteml.md
+HUGO_FILE_NAME_DISTRIBUTED_SYSTEM=content/notes/runningnotedistributedsystems.md
+
 # Copy the Markdown file from Bear notes backup to Hugo blog content directory
-cp "$BEAR_NOTES_DIR/$MARKDOWN_FILE" "$HUGO_BLOG_DIR/$HUGO_FILE_NAME"
+cp "$BEAR_NOTES_DIR/$MARKDOWN_FILE_ML" "$HUGO_BLOG_DIR/$HUGO_FILE_NAME_LLM"
+cp "$BEAR_NOTES_DIR/$MARKDOWN_FILE_DISTRIBUTED_SYSTEM" "$HUGO_BLOG_DIR/$HUGO_FILE_NAME_DISTRIBUTED_SYSTEM"
 
 # Copy the BearImages directory recursively from Bear notes backup to Hugo blog directory
 cp -r "$BEAR_NOTES_DIR/BearImages" "$HUGO_BLOG_DIR/static/"
